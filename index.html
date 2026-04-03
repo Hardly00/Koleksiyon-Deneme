@@ -135,10 +135,10 @@
         .btn-add { background-color: var(--accent-blue); }
         .btn-cat { background-color: var(--success-green); }
         .btn-scan { background-color: var(--primary-navy); margin-top: 5px; }
+        .btn-instr { background-color: var(--brick-yellow); color: var(--text-dark); margin-top: 8px; text-decoration: none; display: block; }
         .btn-delete-set { background-color: #dc3545; margin-top: 8px; }
 
         .top-left-tools { position: fixed; top: 100px; left: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
-        .bottom-left-tools { position: fixed; bottom: 120px; left: 15px; display: flex; flex-direction: column; gap: 10px; z-index: 2000; }
         .tool-btn { width: 45px; height: 45px; border-radius: 50%; background: var(--primary-navy); color: white; border: 2px solid white; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2); font-size: 18px; }
 
         .total-panel {
@@ -166,7 +166,6 @@
                 position: static; flex-direction: row; justify-content: center; 
                 margin: 10px 0; order: 3; 
             }
-            .bottom-left-tools { display: none; }
             
             .set-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
             .category-section { padding: 15px; }
@@ -193,7 +192,6 @@
 <div class="top-left-tools">
     <button class="tool-btn" onclick="verileriYedekle()" title="Yedek İndir">📥</button>
     <button class="tool-btn" onclick="document.getElementById('importInput').click()" title="Yedek Yükle">📤</button>
-    <button class="tool-btn" onclick="excelTablosuOlustur()" title="Excel" style="background: var(--excel-green);">📊</button>
     <button class="tool-btn" onclick="toggleDarkMode()">🌓</button>
     <button class="tool-btn" onclick="tumunuTemizle()" title="Sil" style="background: #dc3545;">🗑️</button>
     <input type="file" id="importInput" style="display:none" onchange="verileriYukle(event)">
@@ -289,14 +287,11 @@
 
                     let queryText = decodedText;
 
-                    // Eğer okunan metin bir link ise (Kılavuz QR'ı gibi)
                     if (decodedText.startsWith("http")) {
-                        // Link içindeki 5-7 haneli sayıları ara
                         const matches = decodedText.match(/\d{5,7}/);
                         if (matches) queryText = matches[0];
                     }
 
-                    // Rebrickable API sorgusu
                     const response = await fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${queryText}`, {
                         headers: { 'Authorization': `key ${API_KEY}` }
                     });
@@ -412,7 +407,18 @@
                 });
                 const data = await response.json();
                 if(data.detail) throw new Error("Set bulunamadı.");
-                const yeniSet = { id: data.set_num, name: data.name, img: data.set_img_url, parts: data.num_parts || 0, takenPrice: fiyat, currentPrice: 0, quantity: 1 };
+                
+                const yeniSet = { 
+                    id: data.set_num, 
+                    name: data.name, 
+                    img: data.set_img_url, 
+                    parts: data.num_parts || 0, 
+                    takenPrice: fiyat, 
+                    currentPrice: 0, 
+                    quantity: 1,
+                    instructions: `https://rebrickable.com/sets/${data.set_num}/#instructions`
+                };
+                
                 koleksiyon[kat].push(yeniSet);
                 sonSet = yeniSet;
                 await kaydet();
@@ -482,12 +488,15 @@
                 tTaken += set.takenPrice; tCurrent += (set.currentPrice * qty); tParts += (set.parts * qty); tSets += qty;
                 html += `<div class="set-card">
                     <div class="quantity-badge">${qty}x</div>
-                    <a href="https://www.akakce.com/arama/?q=lego+${set.id}" target="_blank" class="btn-akakce">🔍</a>
+                    <a href="https://www.akakce.com/arama/?q=lego+${set.id.split('-')[0]}" target="_blank" class="btn-akakce">🔍</a>
                     <img src="${set.img}">
                     <div style="font-size:11px; font-weight:bold; margin:5px 0;">${set.name}</div>
                     <div style="font-size:10px; color:gray;">🧩 ${set.parts * qty} Parça</div>
                     <input type="number" style="font-size:11px; padding:5px; margin-top:5px" placeholder="Alış: ${set.takenPrice}" onchange="alisFiyatDegistir('${kat}', ${idx}, this.value)">
                     <input type="number" style="font-size:11px; padding:5px; margin-top:5px" placeholder="Güncel: ${set.currentPrice}" onchange="guncelFiyatDegistir('${kat}', ${idx}, this.value)">
+                    
+                    <a href="${set.instructions || '#'}" target="_blank" class="btn btn-instr">📖 Talimatlar</a>
+                    
                     <button class="btn btn-delete-set" style="padding:5px; font-size:10px;" onclick="setSil('${kat}', ${idx})">Sil</button>
                 </div>`;
             });
@@ -517,6 +526,13 @@
             await kaydet(); dropdownGuncelle();
         };
         reader.readAsText(e.target.files[0]);
+    }
+
+    function tumunuTemizle() {
+        if(confirm("Tüm koleksiyonu silmek istediğine emin misin?")) {
+            koleksiyon = {}; kategoriRenkleri = {}; sonSet = null;
+            kaydet(); dropdownGuncelle();
+        }
     }
 
     init();
