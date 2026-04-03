@@ -38,7 +38,7 @@
             background-color: var(--bg-light);
             color: var(--text-dark);
             margin: 0; padding: 15px; transition: 0.3s;
-            padding-bottom: 140px;
+            padding-bottom: 160px; 
             scroll-behavior: smooth;
             font-size: 16px;
         }
@@ -73,7 +73,6 @@
         }
         .last-added-card img { width: 100%; height: 80px; object-fit: contain; margin-bottom: 10px; }
 
-        /* YÜZER NAVİGASYON BUTONLARI (85px bottom yapılarak 10px daha yukarı çıkarıldı) */
         .scroll-tools { position: fixed; right: 10px; bottom: 85px; display: flex; flex-direction: column; gap: 8px; z-index: 4500; }
         .bottom-left-tools { position: fixed; left: 10px; bottom: 85px; z-index: 4500; }
         
@@ -125,22 +124,20 @@
 
         @media (max-width: 850px) {
             .container { grid-template-columns: 1fr; }
-            /* MOBİLDE SIDEBAR'I (EKLEME KISMI) ÜSTE SABİTLEME */
+            /* MOBİLDE EKRAN BÖLÜNME SORUNU DÜZELTİLDİ: Sidebar artık akışta kalır */
             .sidebar { 
-                position: sticky; 
-                top: 60px; /* Gruplar Göster barının hemen altında kalsın */
-                z-index: 2500;
-                max-height: 70vh; 
-                overflow-y: auto; 
-                background: var(--bg-light);
-                padding-bottom: 10px;
+                position: relative; 
+                top: 0; 
+                z-index: 10;
+                max-height: none;
+                overflow-y: visible;
+                border-bottom: 2px solid var(--border-color);
             }
             .main-content { order: 2; }
             .btn { padding: 15px; font-size: 16px; }
-            /* Mobil için butonları biraz daha yukarı aldık (95px) */
             .tool-btn { width: 42px; height: 42px; font-size: 18px; }
-            .scroll-tools { bottom: 95px; right: 8px; }
-            .bottom-left-tools { bottom: 95px; left: 8px; }
+            .scroll-tools { bottom: 80px; right: 8px; }
+            .bottom-left-tools { bottom: 80px; left: 8px; }
         }
     </style>
 </head>
@@ -298,9 +295,14 @@
     function dropdownGuncelle() {
         const select = document.getElementById('categorySelect');
         const nav = document.getElementById('navLinks');
-        const keys = Object.keys(koleksiyon);
-        select.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
-        nav.innerHTML = keys.map(k => `<a href="#section-${k}" class="nav-link" onclick="toggleNav()">${k}</a>`).join('');
+        
+        // Kategorileri set sayısına göre büyükten küçüğe sırala
+        const sortedKeys = Object.keys(koleksiyon).sort((a, b) => {
+            return (koleksiyon[b]?.length || 0) - (koleksiyon[a]?.length || 0);
+        });
+
+        select.innerHTML = sortedKeys.map(k => `<option value="${k}">${k}</option>`).join('');
+        nav.innerHTML = sortedKeys.map(k => `<a href="#section-${k}" class="nav-link" onclick="toggleNav()">${k}</a>`).join('');
     }
 
     async function setGetir() {
@@ -325,6 +327,9 @@
             await dbSet('koleksiyon', koleksiyon);
             await dbSet('sonSet', sonSet);
             document.getElementById('setNo').value = ''; document.getElementById('priceInput').value = '';
+            
+            // Ekleme sonrası hem sıralama için dropdown'ı hem de ekranı güncelle
+            dropdownGuncelle();
             ekranıCiz();
             sonSetiGoster();
         } catch (e) { alert("Bulunamadı."); }
@@ -350,7 +355,12 @@
         display.innerHTML = '';
         let tTaken = 0, tCurrent = 0, tParts = 0, tSets = 0;
 
-        Object.keys(koleksiyon).forEach(kat => {
+        // Kategorileri ekrana çizerken de sıralamaya göre çiz
+        const sortedKeys = Object.keys(koleksiyon).sort((a, b) => {
+            return (koleksiyon[b]?.length || 0) - (koleksiyon[a]?.length || 0);
+        });
+
+        sortedKeys.forEach(kat => {
             const sets = koleksiyon[kat];
             const renk = kategoriRenkleri[kat] || '#002b5c';
             const katDiv = document.createElement('div');
@@ -397,7 +407,7 @@
 
     async function fiyatGuncelle(kat, idx, val) { koleksiyon[kat][idx].currentPrice = parseFloat(val) || 0; await dbSet('koleksiyon', koleksiyon); ekranıCiz(); }
     async function fiyatSil(kat, idx) { koleksiyon[kat][idx].currentPrice = 0; await dbSet('koleksiyon', koleksiyon); ekranıCiz(); }
-    async function setSil(kat, idx) { if(confirm("Silinsin mi?")) { koleksiyon[kat].splice(idx, 1); await dbSet('koleksiyon', koleksiyon); ekranıCiz(); } }
+    async function setSil(kat, idx) { if(confirm("Silinsin mi?")) { koleksiyon[kat].splice(idx, 1); await dbSet('koleksiyon', koleksiyon); dropdownGuncelle(); ekranıCiz(); } }
     
     async function hepsiniSil() {
         if(confirm("Eğer evet derseniz eklenen tüm setler silinecektir (Yedek Alınız).")) {
