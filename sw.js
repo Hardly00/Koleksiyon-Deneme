@@ -1,4 +1,4 @@
-const cacheName = 'brick-11'; 
+const cacheName = 'brick-12'; 
 const assets = ['./index.html', './manifest.json'];
 
 
