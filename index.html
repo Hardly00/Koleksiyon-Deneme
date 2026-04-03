@@ -12,22 +12,6 @@
 
     <script src="https://unpkg.com/html5-qrcode"></script>
 
-    <script>
-      const APP_VERSION = "1.4"; 
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js?v=' + APP_VERSION).then(reg => {
-          reg.onupdatefound = () => {
-            const worker = reg.installing;
-            worker.onstatechange = () => {
-              if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-                if(confirm("Yeni özellikler yüklendi! Yenilemek ister misiniz?")) window.location.reload();
-              }
-            };
-          };
-        });
-      }
-    </script>
-
     <style>
         :root {
             --primary-navy: #002b5c; 
@@ -55,6 +39,7 @@
             color: var(--text-dark);
             margin: 0; padding: 15px; transition: 0.3s;
             padding-bottom: 140px;
+            scroll-behavior: smooth;
         }
 
         .container { max-width: 1300px; margin: 0 auto; display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
@@ -63,68 +48,80 @@
             grid-column: 1 / -1;
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 20px; background: var(--primary-navy); color: white;
-            border-radius: 12px; margin-bottom: 15px;
+            border-radius: 12px; margin-bottom: 10px;
         }
 
-        /* HIZLI ERİŞİM LİSTESİ */
+        /* AÇILIR KAPANIR GRUPLAR PANELİ */
+        .nav-wrapper { grid-column: 1 / -1; margin-bottom: 15px; }
+        .nav-toggle-btn {
+            width: 100%; padding: 10px; background: var(--accent-blue); color: white;
+            border: none; border-radius: 8px; cursor: pointer; font-weight: bold;
+            display: flex; justify-content: space-between; align-items: center;
+        }
         .nav-panel {
-            grid-column: 1 / -1;
-            background: var(--card-bg);
-            padding: 10px 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
+            background: var(--card-bg); padding: 10px; border-radius: 0 0 10px 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            display: flex; align-items: center; gap: 10px;
-            overflow-x: auto; white-space: nowrap;
+            display: none; flex-wrap: wrap; gap: 8px; border: 1px solid var(--border-color); border-top: none;
         }
+        .nav-panel.open { display: flex; }
         .nav-link {
-            padding: 6px 12px; background: #eee; border-radius: 20px;
-            text-decoration: none; color: #333; font-size: 12px; font-weight: bold;
-            transition: 0.2s; border: 1px solid transparent;
+            padding: 5px 12px; background: #eee; border-radius: 15px;
+            text-decoration: none; color: #333; font-size: 11px; font-weight: bold;
+            border: 1px solid #ddd;
         }
-        .nav-link:hover { background: var(--accent-blue); color: white; }
+
+        /* YÜZER NAVİGASYON BUTONLARI (AŞAĞI-YUKARI) */
+        .scroll-tools {
+            position: fixed; right: 20px; bottom: 150px;
+            display: flex; flex-direction: column; gap: 10px; z-index: 4500;
+        }
+        .scroll-btn {
+            width: 45px; height: 45px; border-radius: 50%; background: var(--brick-red);
+            color: white; border: 2px solid white; cursor: pointer;
+            font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;
+        }
 
         .controls { background: var(--card-bg); padding: 15px; border-radius: 12px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .panel h4 { margin: 0 0 10px 0; color: var(--accent-blue); font-size: 14px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-
-        .set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+        .set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
         
-        /* KART TASARIMI GÜNCELLEME */
+        /* KART TASARIMI */
         .set-card {
-            border: 1px solid var(--border-color); padding: 10px; border-radius: 10px;
+            border: 1px solid var(--border-color); padding: 8px; border-radius: 10px;
             background: var(--card-bg); display: flex; flex-direction: column;
-            height: 410px; box-sizing: border-box; position: relative;
+            height: 380px; box-sizing: border-box; position: relative;
         }
-        .set-card img { width: 100%; height: 100px; object-fit: contain; margin-bottom: 8px; }
-        .set-name { font-size: 11px; font-weight: bold; height: 32px; overflow: hidden; margin-bottom: 4px; }
+        .set-card img { width: 100%; height: 100px; object-fit: contain; margin-bottom: 5px; }
+        .set-name { font-size: 11px; font-weight: bold; height: 32px; overflow: hidden; margin-bottom: 2px; }
         
-        .card-inputs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; position: relative; }
-        .card-inputs input { padding: 6px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-sizing: border-box; background: var(--bg-light); color: var(--text-dark); }
+        .card-inputs { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; position: relative; }
+        .card-inputs input { padding: 5px; font-size: 11px; border: 1px solid var(--border-color); border-radius: 5px; width: 100%; box-sizing: border-box; }
         
-        .btn-clear-price { position: absolute; right: 5px; bottom: 6px; background: none; border: none; color: #dc3545; cursor: pointer; font-size: 12px; }
+        .btn-clear-price { position: absolute; right: 5px; bottom: 5px; background: none; border: none; color: #dc3545; cursor: pointer; font-size: 12px; }
 
         .card-actions { margin-top: auto; display: flex; flex-direction: column; gap: 4px; }
 
-        .btn { border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; padding: 8px; font-size: 11px; width: 100%; transition: 0.2s; }
+        .btn { border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; padding: 6px; font-size: 11px; width: 100%; }
         .btn-add { background-color: var(--accent-blue); }
         .btn-cat { background-color: var(--success-green); }
-        .btn-instr { background-color: var(--brick-yellow); color: #000; text-decoration: none; text-align: center; display: block; line-height: 18px; }
-        .btn-delete { background-color: #dc3545; padding: 6px; font-size: 10px; }
+        
+        .btn-instr { 
+            background-color: var(--brick-yellow); color: #000; text-decoration: none; 
+            text-align: center; display: block; font-size: 10px; padding: 4px; border-radius: 4px;
+        }
+        .btn-delete { background-color: #dc3545; font-size: 10px; padding: 4px; }
 
         .category-section {
-            background: var(--card-bg); padding: 15px; border-radius: 12px;
-            margin-bottom: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border-left: 6px solid; scroll-margin-top: 100px; /* Kaydırma boşluğu */
+            background: var(--card-bg); padding: 12px; border-radius: 12px;
+            margin-bottom: 20px; border-left: 6px solid; scroll-margin-top: 80px;
         }
 
         .total-panel {
             position: fixed; bottom: 0; left: 0; right: 0;
             background: var(--primary-navy); color: white;
             padding: 12px 5px; display: grid; grid-template-columns: 1fr 1fr 1fr;
-            border-top: 4px solid var(--brick-yellow);
-            z-index: 4000; text-align: center;
+            border-top: 4px solid var(--brick-yellow); z-index: 4000; text-align: center;
         }
-        .total-val { color: var(--brick-yellow); font-weight: bold; font-size: 13px; margin-top: 2px; }
+        .total-val { color: var(--brick-yellow); font-weight: bold; font-size: 13px; }
 
         #reader { width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; }
 
@@ -132,17 +129,21 @@
             .container { grid-template-columns: 1fr; }
             .sidebar { order: 2; }
             .main-content { order: 1; }
-            .nav-panel { position: sticky; top: 0; z-index: 3000; }
         }
     </style>
 </head>
 <body>
 
 <div id="qrModal" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); width:90%; max-width:400px; background:white; border:2px solid blue; border-radius:15px; z-index:5000; padding:15px; text-align:center;">
-    <h4>QR Okundu</h4>
-    <p id="modalUrl" style="font-size:10px; word-break:break-all;"></p>
+    <h4 style="margin-top:0;">QR Okundu</h4>
+    <p id="modalUrl" style="font-size:10px; word-break:break-all; background:#f4f4f4; padding:8px; border-radius:5px; margin-bottom:10px;"></p>
     <button class="btn" style="background:green;" onclick="koduAyikla()">🎯 Kodu Ayıkla</button>
     <button class="btn" style="background:gray; margin-top:5px;" onclick="modalKapat()">Kapat</button>
+</div>
+
+<div class="scroll-tools">
+    <button class="scroll-btn" onclick="window.scrollTo(0,0)">▲</button>
+    <button class="scroll-btn" onclick="window.scrollTo(0, document.body.scrollHeight)">▼</button>
 </div>
 
 <header>
@@ -150,9 +151,10 @@
     <span style="font-size: 11px; background: var(--brick-red); padding: 4px 10px; border-radius: 20px;">Set: <span id="grandTotalCount">0</span></span>
 </header>
 
-<div class="nav-panel" id="navLinks">
-    <span style="font-size: 11px; font-weight: bold; color: var(--primary-navy);">Gruplar:</span>
-    </div>
+<div class="nav-wrapper">
+    <button class="nav-toggle-btn" onclick="toggleNav()">📂 Grupları Göster / Gizle <span id="navArrow">▼</span></button>
+    <div class="nav-panel" id="navLinks"></div>
+</div>
 
 <div class="container">
     <div class="sidebar">
@@ -174,7 +176,6 @@
             <div class="panel">
                 <button class="btn" style="background:#6c757d; font-size:10px;" onclick="verileriYedekle()">📥 Yedekle</button>
                 <button class="btn" style="background:#6c757d; font-size:10px; margin-top:5px;" onclick="document.getElementById('importInput').click()">📤 Yükle</button>
-                <button class="btn" style="background:#dc3545; margin-top:10px;" onclick="tumunuTemizle()">🗑️ Her Şeyi Sil</button>
                 <input type="file" id="importInput" style="display:none" onchange="verileriYukle(event)">
             </div>
         </div>
@@ -192,6 +193,14 @@
     const API_KEY = 'c10a8ebe89136b8802982ac9523cd8bf'; 
     const DB_NAME = 'BrickKoleksiyonDeneme'; 
     let db, koleksiyon = {}, kategoriRenkleri = {};
+    let html5QrCode;
+
+    function toggleNav() {
+        const panel = document.getElementById('navLinks');
+        const arrow = document.getElementById('navArrow');
+        panel.classList.toggle('open');
+        arrow.innerText = panel.classList.contains('open') ? '▲' : '▼';
+    }
 
     async function init() {
         const request = indexedDB.open(DB_NAME, 1);
@@ -218,23 +227,36 @@
         tx.objectStore('data').put(v, k);
     }
 
+    // GÜNCELLENEN AYIKLAMA FONKSİYONU (BAŞTAKİ SIFIRLARI SİLER)
     function koduAyikla() {
         const url = document.getElementById('modalUrl').innerText;
         const matches = url.match(/\d{4,7}/);
-        if (matches) { document.getElementById('setNo').value = matches[0]; modalKapat(); }
+        if (matches) { 
+            // Baştaki tüm sıfırları temizleyen Regex: ^0+
+            const cleanCode = matches[0].replace(/^0+/, '');
+            document.getElementById('setNo').value = cleanCode; 
+            modalKapat(); 
+        } else {
+            alert("Sayı bulunamadı.");
+        }
     }
+
     function modalKapat() { document.getElementById('qrModal').style.display = 'none'; }
 
     async function barkodTarayiciyiBaslat() {
         const readerDiv = document.getElementById('reader');
-        if (readerDiv.style.display === 'block') { if(html5QrCode) await html5QrCode.stop(); readerDiv.style.display = 'none'; return; }
+        if (readerDiv.style.display === 'block') { 
+            if(html5QrCode) await html5QrCode.stop(); 
+            readerDiv.style.display = 'none'; 
+            return; 
+        }
         readerDiv.style.display = 'block';
         html5QrCode = new Html5Qrcode("reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (txt) => {
             document.getElementById('modalUrl').innerText = txt;
             document.getElementById('qrModal').style.display = 'block';
             html5QrCode.stop(); readerDiv.style.display = 'none';
-        });
+        }).catch(err => alert("Kamera başlatılamadı."));
     }
 
     async function kategoriEkle() {
@@ -255,17 +277,7 @@
         const nav = document.getElementById('navLinks');
         const keys = Object.keys(koleksiyon);
         select.innerHTML = keys.map(k => `<option value="${k}">${k}</option>`).join('');
-        
-        // Navigasyon barını güncelle
-        const currentLinks = nav.querySelectorAll('.nav-link');
-        currentLinks.forEach(l => l.remove());
-        keys.forEach(k => {
-            const a = document.createElement('a');
-            a.className = 'nav-link';
-            a.href = `#section-${k}`;
-            a.innerText = k;
-            nav.appendChild(a);
-        });
+        nav.innerHTML = keys.map(k => `<a href="#section-${k}" class="nav-link" onclick="toggleNav()">${k}</a>`).join('');
     }
 
     async function setGetir() {
@@ -276,9 +288,18 @@
         try {
             const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNo}-1/`, { headers: {'Authorization': `key ${API_KEY}`} });
             const data = await res.json();
-            koleksiyon[kat].push({ id: data.set_num, name: data.name, img: data.set_img_url, parts: data.num_parts, takenPrice: fiyat, currentPrice: 0, instructions: `https://www.lego.com/en-us/service/buildinginstructions/${data.set_num.split('-')[0]}` });
+            koleksiyon[kat].push({ 
+                id: data.set_num, 
+                name: data.name, 
+                img: data.set_img_url, 
+                parts: data.num_parts, 
+                takenPrice: fiyat, 
+                currentPrice: 0, 
+                instructions: `https://www.lego.com/en-us/service/buildinginstructions/${data.set_num.split('-')[0]}` 
+            });
             await dbSet('koleksiyon', koleksiyon);
-            document.getElementById('setNo').value = ''; document.getElementById('priceInput').value = '';
+            document.getElementById('setNo').value = ''; 
+            document.getElementById('priceInput').value = '';
             ekranıCiz();
         } catch (e) { alert("Bulunamadı."); }
     }
@@ -295,7 +316,7 @@
             katDiv.className = 'category-section';
             katDiv.id = `section-${kat}`;
             katDiv.style.borderColor = renk;
-            katDiv.innerHTML = `<h3 style="color:${renk}; margin-top:0; font-size:15px;">${kat} (${sets.length})</h3><div class="set-grid"></div>`;
+            katDiv.innerHTML = `<h4 style="color:${renk}; margin:0 0 10px 0; font-size:14px;">${kat} (${sets.length})</h4><div class="set-grid"></div>`;
             const grid = katDiv.querySelector('.set-grid');
 
             sets.forEach((set, idx) => {
@@ -304,15 +325,15 @@
                     <div class="set-card">
                         <img src="${set.img}">
                         <div class="set-name">${set.name}</div>
-                        <div style="font-size:9px; color:gray; margin-bottom:5px;">🧩 ${set.parts} Parça</div>
+                        <div style="font-size:9px; color:gray; margin-bottom:4px;">🧩 ${set.parts}p</div>
                         <div class="card-inputs">
-                            <label style="font-size:9px; color:red">Alış: ${set.takenPrice} ₺</label>
+                            <label style="font-size:8px; color:red">Alış: ${set.takenPrice}₺</label>
                             <input type="number" placeholder="Güncel ₺" value="${set.currentPrice || ''}" onchange="fiyatGuncelle('${kat}', ${idx}, this.value)">
                             <button class="btn-clear-price" onclick="fiyatSil('${kat}', ${idx})">✖</button>
                         </div>
                         <div class="card-actions">
-                            <a href="${set.instructions}" target="_blank" class="btn btn-instr">📖 Talimat</a>
-                            <button class="btn btn-delete" onclick="setSil('${kat}', ${idx})">Sil</button>
+                            <a href="${set.instructions}" target="_blank" class="btn-instr">📖 Talimat</a>
+                            <button class="btn-delete" onclick="setSil('${kat}', ${idx})">Sil</button>
                         </div>
                     </div>`;
             });
@@ -329,7 +350,6 @@
     async function setSil(kat, idx) { if(confirm("Silinsin mi?")) { koleksiyon[kat].splice(idx, 1); await dbSet('koleksiyon', koleksiyon); ekranıCiz(); } }
     function verileriYedekle() { const blob = new Blob([JSON.stringify({koleksiyon, renkler: kategoriRenkleri})], {type: "application/json"}); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `brick_yedek.json`; a.click(); }
     async function verileriYukle(e) { const r = new FileReader(); r.onload = async (ev) => { const d = JSON.parse(ev.target.result); koleksiyon = d.koleksiyon; kategoriRenkleri = d.renkler; await dbSet('koleksiyon', koleksiyon); await dbSet('renkler', kategoriRenkleri); dropdownGuncelle(); ekranıCiz(); }; r.readAsText(e.target.files[0]); }
-    async function tumunuTemizle() { if(confirm("HER ŞEY SİLİNECEK!")) { koleksiyon = {}; kategoriRenkleri = {}; await dbSet('koleksiyon', koleksiyon); await dbSet('renkler', kategoriRenkleri); dropdownGuncelle(); ekranıCiz(); } }
 
     init();
 </script>
