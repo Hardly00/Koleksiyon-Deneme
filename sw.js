@@ -1,7 +1,7 @@
-const cacheName = 'lego-v1';
+const cacheName = 'brick-v2'; 
 const assets = ['./index.html', './manifest.json'];
 
-// Kurulum aşamasında dosyaları önbelleğe al
+
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(cacheName).then(cache => {
@@ -10,7 +10,6 @@ self.addEventListener('install', e => {
   );
 });
 
-// İnternet olmasa da önbellekten dosyaları getir
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(res => {
