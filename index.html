@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <title>BRICK Koleksiyonum</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#d11212">
@@ -12,10 +16,20 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <script>
+      // Güncellemeleri kontrol et ve yeni versiyon varsa sayfayı yenile
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js')
-          .then(() => console.log("Service Worker Kaydedildi"))
-          .catch(err => console.log("Hata:", err));
+        navigator.serviceWorker.register('sw.js?v=2').then(reg => {
+            reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                        if(confirm("Yeni bir güncelleme var! Yüklemek ister misiniz?")) {
+                            window.location.reload();
+                        }
+                    }
+                };
+            };
+        });
       }
     </script>
 
@@ -45,7 +59,7 @@
             background-color: var(--bg-light);
             color: var(--text-dark);
             margin: 0; padding: 20px; transition: 0.3s;
-            padding-bottom: 120px;
+            padding-bottom: 120px; /* Alt panel için güvenli boşluk */
         }
 
         @media (display-mode: standalone) {
@@ -61,25 +75,22 @@
             border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        /* QR POP-UP PANELİ */
         #qrModal {
             display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
             width: 90%; max-width: 400px; background: var(--card-bg); border: 2px solid var(--accent-blue);
             border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 5000; padding: 15px;
-            text-align: center; animation: slideIn 0.3s ease-out;
+            text-align: center;
         }
-        @keyframes slideIn { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
 
         .sidebar { display: flex; flex-direction: column; gap: 20px; }
         .controls { background: var(--card-bg); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 
         .set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         
-        /* KART TASARIMI SABİTLEME */
         .set-card {
             border: 1px solid var(--border-color); padding: 12px; border-radius: 10px;
             background: var(--card-bg); display: flex; flex-direction: column;
-            height: 400px; box-sizing: border-box; position: relative;
+            height: 420px; box-sizing: border-box; position: relative;
         }
         .set-card img { width: 100%; height: 110px; object-fit: contain; margin-bottom: 10px; }
         .set-name { font-size: 12px; font-weight: bold; height: 35px; overflow: hidden; margin-bottom: 5px; }
@@ -87,8 +98,19 @@
 
         .btn { border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; padding: 10px; font-size: 12px; width: 100%; }
         .btn-add { background-color: var(--accent-blue); }
-        .btn-instr { background-color: var(--brick-yellow); color: #000; text-decoration: none; text-align: center; }
+        .btn-instr { background-color: var(--brick-yellow); color: #000; text-decoration: none; text-align: center; line-height: 20px; }
         .btn-delete-set { background-color: #dc3545; }
+
+        /* ALT PANEL DÜZELTME */
+        .total-panel {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--primary-navy); color: white;
+            padding: 15px 10px; display: flex; justify-content: space-around;
+            border-top: 4px solid var(--brick-yellow);
+            z-index: 4000; box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
+        }
+        .total-panel div { display: flex; flex-direction: column; align-items: center; }
+        .total-val { color: var(--brick-yellow); font-weight: bold; font-size: 14px; margin-top: 2px; }
 
         #reader { width: 100%; border-radius: 8px; overflow: hidden; margin-top: 10px; }
 
@@ -96,13 +118,14 @@
             .container { grid-template-columns: 1fr; }
             .sidebar { order: 2; }
             .main-content { order: 1; }
+            .total-panel { padding: 10px 5px; font-size: 12px; }
         }
     </style>
 </head>
 <body>
 
 <div id="qrModal">
-    <h4 style="margin:0 0 10px 0; color:var(--accent-blue);">QR Kod Okundu</h4>
+    <h4 style="margin:0 0 10px 0;">QR Kod Okundu</h4>
     <p id="modalUrl" style="font-size:11px; word-break:break-all; background:#eee; padding:8px; border-radius:5px; color:#555;"></p>
     <div style="display:flex; gap:10px; margin-top:10px;">
         <button class="btn" style="background:var(--success-green);" onclick="koduAyikla()">🎯 Kodu Ayıkla</button>
@@ -124,10 +147,9 @@
                 <h4>Yeni Set Ekle</h4>
                 <div id="reader" style="display:none;"></div>
                 <button id="scanBtn" class="btn" style="background:var(--primary-navy)" onclick="barkodTarayiciyiBaslat()">📷 Barkod/QR Tara</button>
-                
                 <input type="text" id="setNo" placeholder="Set Kodu (Örn: 42151)" style="margin-top:15px; padding:12px; width:100%; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">
                 <input type="number" id="priceInput" placeholder="Alış Fiyatı (TL)" style="margin-top:8px; padding:12px; width:100%; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">
-                <select id="categorySelect" style="margin-top:8px; padding:12px; width:100%; border-radius:8px;"></select>
+                <select id="categorySelect" style="margin-top:8px; padding:12px; width:100%; border-radius:8px; border:1px solid #ccc;"></select>
                 <button class="btn btn-add" style="margin-top:10px;" onclick="setGetir()">Koleksiyona Ekle</button>
             </div>
             <button id="installAppBtn" class="btn" style="background:#6c757d" onclick="uygulamayiYukle()">📲 Uygulamayı Telefona İndir</button>
@@ -137,8 +159,8 @@
 </div>
 
 <div class="total-panel">
-    <div><span>Parça</span><span id="totalParts" class="total-val">0</span></div>
-    <div><span>Maliyet</span><span id="totalTaken" class="total-val">0</span></div>
+    <div><span>Toplam Parça</span><span id="totalParts" class="total-val">0</span></div>
+    <div><span>Toplam Maliyet</span><span id="totalTaken" class="total-val">0 ₺</span></div>
 </div>
 
 <script>
@@ -146,9 +168,8 @@
     const DB_NAME = 'BrickKoleksiyonDeneme'; 
     const DB_VERSION = 1;
 
-    let db, koleksiyon = {}, kategoriRenkleri = {};
+    let db, koleksiyon = {};
 
-    // --- QR TARAYICI VE POP-UP MANTIĞI ---
     let html5QrCode;
     async function barkodTarayiciyiBaslat() {
         const readerDiv = document.getElementById('reader');
@@ -162,7 +183,7 @@
         html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, 
             (decodedText) => {
                 document.getElementById('modalUrl').innerText = decodedText;
-                document.getElementById('qrModal').style.display = 'block'; // Pop-up'ı aç
+                document.getElementById('qrModal').style.display = 'block';
                 html5QrCode.stop();
                 readerDiv.style.display = 'none';
             }
@@ -171,7 +192,7 @@
 
     function koduAyikla() {
         const url = document.getElementById('modalUrl').innerText;
-        const matches = url.match(/\d{4,7}/); // Link içindeki 4-7 haneli sayıyı bul
+        const matches = url.match(/\d{4,7}/);
         if (matches) {
             document.getElementById('setNo').value = matches[0];
             modalKapat();
@@ -182,10 +203,13 @@
 
     function modalKapat() { document.getElementById('qrModal').style.display = 'none'; }
 
-    // --- SİSTEM FONKSİYONLARI ---
     async function init() {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = e => e.target.result.createObjectStore('data');
+        request.onupgradeneeded = e => {
+            if (!e.target.result.objectStoreNames.contains('data')) {
+                e.target.result.createObjectStore('data');
+            }
+        };
         request.onsuccess = async e => {
             db = e.target.result;
             koleksiyon = await dbGet('koleksiyon') || {};
@@ -217,7 +241,7 @@
             const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNo}-1/`, {
                 headers: { 'Authorization': `key ${API_KEY}` }
             });
-            const data = await res.json();
+            const data = await response = await res.json();
             if(data.detail) throw new Error("Set bulunamadı.");
 
             if(!koleksiyon[kat]) koleksiyon[kat] = [];
@@ -225,13 +249,14 @@
                 id: data.set_num,
                 name: data.name,
                 img: data.set_img_url,
-                parts: data.num_parts,
+                parts: data.num_parts || 0,
                 takenPrice: fiyat,
                 instructions: `https://www.lego.com/en-us/service/buildinginstructions/${data.set_num.split('-')[0]}`
             });
 
             await dbSet('koleksiyon', koleksiyon);
             document.getElementById('setNo').value = '';
+            document.getElementById('priceInput').value = '';
             ekranıCiz();
         } catch (e) { alert(e.message); }
     }
@@ -242,9 +267,10 @@
         let tTaken = 0, tParts = 0, tSets = 0;
 
         Object.keys(koleksiyon).forEach(kat => {
+            if(koleksiyon[kat].length === 0) return;
             const katDiv = document.createElement('div');
             katDiv.className = 'category-section';
-            katDiv.innerHTML = `<h3 style="color:var(--primary-navy)">${kat}</h3><div class="set-grid"></div>`;
+            katDiv.innerHTML = `<h3 style="color:var(--primary-navy); border-bottom: 2px solid var(--border-color); padding-bottom: 5px;">${kat}</h3><div class="set-grid"></div>`;
             const grid = katDiv.querySelector('.set-grid');
 
             koleksiyon[kat].forEach((set, idx) => {
@@ -263,12 +289,12 @@
             display.appendChild(katDiv);
         });
         document.getElementById('grandTotalCount').innerText = tSets;
-        document.getElementById('totalParts').innerText = tParts;
-        document.getElementById('totalTaken').innerText = tTaken + " ₺";
+        document.getElementById('totalParts').innerText = tParts.toLocaleString();
+        document.getElementById('totalTaken').innerText = tTaken.toLocaleString() + " ₺";
     }
 
     async function setSil(kat, idx) {
-        if(confirm("Silinsin mi?")) {
+        if(confirm("Bu seti silmek istediğine emin misin?")) {
             koleksiyon[kat].splice(idx, 1);
             await dbSet('koleksiyon', koleksiyon);
             ekranıCiz();
@@ -287,10 +313,40 @@
             dbSet('koleksiyon', koleksiyon);
             dropdownGuncelle();
             document.getElementById('newCatInput').value = '';
+            ekranıCiz();
         }
     }
-    
-    function uygulamayiYukle() { /* PWA install logic */ }
+
+    function verileriYedekle() {
+        const blob = new Blob([JSON.stringify({koleksiyon})], {type: "application/json"});
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `brick_yedek_${new Date().toLocaleDateString()}.json`;
+        link.click();
+    }
+
+    async function verileriYukle(e) {
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const data = JSON.parse(event.target.result);
+            koleksiyon = data.koleksiyon;
+            await dbSet('koleksiyon', koleksiyon);
+            dropdownGuncelle();
+            ekranıCiz();
+        };
+        reader.readAsText(e.target.files[0]);
+    }
+
+    function tumunuTemizle() {
+        if(confirm("TÜM KOLEKSİYONU SİLMEK ÜZERESİNİZ! Emin misiniz?")) {
+            koleksiyon = {};
+            dbSet('koleksiyon', koleksiyon);
+            dropdownGuncelle();
+            ekranıCiz();
+        }
+    }
+
+    function uygulamayiYukle() { alert("Tarayıcı menüsünden 'Ana Ekrana Ekle' seçeneğini kullanın."); }
 
     init();
 </script>
