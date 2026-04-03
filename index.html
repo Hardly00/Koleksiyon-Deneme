@@ -261,12 +261,12 @@
 
     // GELİŞMİŞ BARKOD TARAYICI FONKSİYONU
     let html5QrCode;
-    function barkodTarayiciyiBaslat() {
+    async function barkodTarayiciyiBaslat() {
         const readerDiv = document.getElementById('reader');
         const scanBtn = document.getElementById('scanBtn');
         
         if (readerDiv.style.display === 'block') {
-            if(html5QrCode) html5QrCode.stop();
+            if(html5QrCode) await html5QrCode.stop();
             readerDiv.style.display = 'none';
             scanBtn.innerText = "📷 Barkod Tara";
             return;
@@ -276,38 +276,41 @@
         scanBtn.innerText = "❌ Taramayı Kapat";
         
         html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 10, qrbox: { width: 280, height: 180 } };
+        const config = { fps: 15, qrbox: { width: 280, height: 180 } };
 
         html5QrCode.start(
             { facingMode: "environment" }, 
             config, 
             async (decodedText) => {
                 try {
+                    // Barkod okunduğunda hemen durdur
                     await html5QrCode.stop();
                     readerDiv.style.display = 'none';
                     scanBtn.innerText = "📷 Barkod Tara";
 
-                    // Rebrickable üzerinden set numarasını bul
+                    // Rebrickable API sorgusu
                     const response = await fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${decodedText}`, {
                         headers: { 'Authorization': `key ${API_KEY}` }
                     });
                     const data = await response.json();
 
-                    if (data.count > 0) {
+                    if (data.results && data.results.length > 0) {
+                        // Set numarasını temizle (-1 kısmını at)
                         const foundSetNum = data.results[0].set_num.split('-')[0];
                         document.getElementById('setNo').value = foundSetNum;
                         setGetir(); 
                     } else {
+                        // Eğer API barkoddan bulamazsa, okunan veriyi direkt kod kutusuna yaz
                         document.getElementById('setNo').value = decodedText;
                         setGetir();
                     }
                 } catch (err) {
-                    console.error("Hata:", err);
-                    alert("Set bulunamadı!");
+                    console.error("Tarama Hatası:", err);
+                    alert("Barkod işlenirken hata oluştu.");
                 }
             }
         ).catch(err => {
-            alert("Kamera başlatılamadı!");
+            alert("Kamera başlatılamadı! Lütfen izin verdiğinizden emin olun.");
             readerDiv.style.display = 'none';
             scanBtn.innerText = "📷 Barkod Tara";
         });
