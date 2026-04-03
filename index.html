@@ -61,36 +61,32 @@
             border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
 
-        .controls {
-            background: var(--card-bg); padding: 20px; border-radius: 12px;
-            display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        /* QR POP-UP PANELİ */
+        #qrModal {
+            display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 400px; background: var(--card-bg); border: 2px solid var(--accent-blue);
+            border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); z-index: 5000; padding: 15px;
+            text-align: center; animation: slideIn 0.3s ease-out;
         }
+        @keyframes slideIn { from { top: -100px; opacity: 0; } to { top: 20px; opacity: 1; } }
 
-        /* QR SONUÇ PANELİ */
-        #qrResultArea {
-            display: none; background: #f8f9fa; padding: 12px; border-radius: 8px;
-            border: 2px dashed var(--accent-blue); margin-top: 10px;
-        }
-        #fullUrlText { font-size: 10px; color: #555; word-break: break-all; margin-bottom: 8px; max-height: 40px; overflow: hidden; }
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        .controls { background: var(--card-bg); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 
         .set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; }
         
-        /* KART TASARIMI (SABİT YÜKSEKLİK VE DÜZEN) */
+        /* KART TASARIMI SABİTLEME */
         .set-card {
-            position: relative; border: 1px solid var(--border-color); padding: 15px;
-            border-radius: 10px; background: var(--card-bg);
-            display: flex; flex-direction: column;
-            height: 420px; /* Tüm kartlar aynı boyda */
-            box-sizing: border-box;
+            border: 1px solid var(--border-color); padding: 12px; border-radius: 10px;
+            background: var(--card-bg); display: flex; flex-direction: column;
+            height: 400px; box-sizing: border-box; position: relative;
         }
         .set-card img { width: 100%; height: 110px; object-fit: contain; margin-bottom: 10px; }
-        .set-name { font-size: 12px; font-weight: bold; height: 34px; overflow: hidden; margin-bottom: 5px; }
-        .set-details { font-size: 10px; color: gray; margin-bottom: 10px; }
-        
+        .set-name { font-size: 12px; font-weight: bold; height: 35px; overflow: hidden; margin-bottom: 5px; }
         .card-actions { margin-top: auto; display: flex; flex-direction: column; gap: 5px; }
 
-        .btn { border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; padding: 10px; font-size: 12px; transition: 0.2s; }
-        .btn-add { background-color: var(--accent-blue); width: 100%; }
+        .btn { border: none; border-radius: 8px; cursor: pointer; color: white; font-weight: bold; padding: 10px; font-size: 12px; width: 100%; }
+        .btn-add { background-color: var(--accent-blue); }
         .btn-instr { background-color: var(--brick-yellow); color: #000; text-decoration: none; text-align: center; }
         .btn-delete-set { background-color: #dc3545; }
 
@@ -100,11 +96,19 @@
             .container { grid-template-columns: 1fr; }
             .sidebar { order: 2; }
             .main-content { order: 1; }
-            .set-card { height: 440px; }
         }
     </style>
 </head>
 <body>
+
+<div id="qrModal">
+    <h4 style="margin:0 0 10px 0; color:var(--accent-blue);">QR Kod Okundu</h4>
+    <p id="modalUrl" style="font-size:11px; word-break:break-all; background:#eee; padding:8px; border-radius:5px; color:#555;"></p>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn" style="background:var(--success-green);" onclick="koduAyikla()">🎯 Kodu Ayıkla</button>
+        <button class="btn" style="background:#6c757d;" onclick="modalKapat()">Kapat</button>
+    </div>
+</div>
 
 <header>
     <h2 style="margin:0; font-size: 18px;">BRICK KOLEKSİYONUM</h2>
@@ -117,19 +121,13 @@
     <div class="sidebar">
         <div class="controls">
             <div class="panel">
-                <h4>Set Ekle</h4>
+                <h4>Yeni Set Ekle</h4>
                 <div id="reader" style="display:none;"></div>
-                <button id="scanBtn" class="btn" style="background:var(--primary-navy); width:100%;" onclick="barkodTarayiciyiBaslat()">📷 Barkod/QR Tara</button>
+                <button id="scanBtn" class="btn" style="background:var(--primary-navy)" onclick="barkodTarayiciyiBaslat()">📷 Barkod/QR Tara</button>
                 
-                <div id="qrResultArea">
-                    <p style="margin:0 0 5px 0; font-size:11px; font-weight:bold;">Okunan Link:</p>
-                    <div id="fullUrlText"></div>
-                    <button class="btn" style="background:var(--success-green); width:100%; font-size:11px;" onclick="koduAyiklaVeDoldur()">🎯 Kodu Ayıkla ve Yaz</button>
-                </div>
-
                 <input type="text" id="setNo" placeholder="Set Kodu (Örn: 42151)" style="margin-top:15px; padding:12px; width:100%; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">
                 <input type="number" id="priceInput" placeholder="Alış Fiyatı (TL)" style="margin-top:8px; padding:12px; width:100%; border-radius:8px; border:1px solid #ccc; box-sizing:border-box;">
-                <select id="categorySelect" style="margin-top:8px; padding:12px; width:100%; border-radius:8px; border:1px solid #ccc;"></select>
+                <select id="categorySelect" style="margin-top:8px; padding:12px; width:100%; border-radius:8px;"></select>
                 <button class="btn btn-add" style="margin-top:10px;" onclick="setGetir()">Koleksiyona Ekle</button>
             </div>
             <button id="installAppBtn" class="btn" style="background:#6c757d" onclick="uygulamayiYukle()">📲 Uygulamayı Telefona İndir</button>
@@ -140,7 +138,6 @@
 
 <div class="total-panel">
     <div><span>Parça</span><span id="totalParts" class="total-val">0</span></div>
-    <div><span>Güncel</span><span id="totalCurrent" class="total-val">0</span></div>
     <div><span>Maliyet</span><span id="totalTaken" class="total-val">0</span></div>
 </div>
 
@@ -151,56 +148,47 @@
 
     let db, koleksiyon = {}, kategoriRenkleri = {};
 
-    // --- YENİ QR MANTIĞI ---
+    // --- QR TARAYICI VE POP-UP MANTIĞI ---
     let html5QrCode;
     async function barkodTarayiciyiBaslat() {
         const readerDiv = document.getElementById('reader');
-        const resArea = document.getElementById('qrResultArea');
-        const scanBtn = document.getElementById('scanBtn');
-
         if (readerDiv.style.display === 'block') {
             if(html5QrCode) await html5QrCode.stop();
             readerDiv.style.display = 'none';
-            scanBtn.innerText = "📷 Barkod/QR Tara";
             return;
         }
-
         readerDiv.style.display = 'block';
-        resArea.style.display = 'none';
-        scanBtn.innerText = "❌ Kapat";
-
         html5QrCode = new Html5Qrcode("reader");
         html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, 
             (decodedText) => {
-                document.getElementById('fullUrlText').innerText = decodedText;
-                resArea.style.display = 'block'; 
+                document.getElementById('modalUrl').innerText = decodedText;
+                document.getElementById('qrModal').style.display = 'block'; // Pop-up'ı aç
                 html5QrCode.stop();
                 readerDiv.style.display = 'none';
-                scanBtn.innerText = "📷 Barkod/QR Tara";
             }
         ).catch(() => alert("Kamera izni gerekiyor."));
     }
 
-    function koduAyiklaVeDoldur() {
-        const url = document.getElementById('fullUrlText').innerText;
-        // Link içindeki 4 ile 7 hane arasındaki sayı grubunu bulur
-        const matches = url.match(/\d{4,7}/); 
+    function koduAyikla() {
+        const url = document.getElementById('modalUrl').innerText;
+        const matches = url.match(/\d{4,7}/); // Link içindeki 4-7 haneli sayıyı bul
         if (matches) {
             document.getElementById('setNo').value = matches[0];
-            document.getElementById('qrResultArea').style.display = 'none';
+            modalKapat();
         } else {
-            alert("Link içinde set kodu bulunamadı.");
+            alert("Set kodu ayıklanamadı.");
         }
     }
 
-    // --- SİSTEM VE EKLEME FONKSİYONLARI ---
+    function modalKapat() { document.getElementById('qrModal').style.display = 'none'; }
+
+    // --- SİSTEM FONKSİYONLARI ---
     async function init() {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onupgradeneeded = e => e.target.result.createObjectStore('data');
         request.onsuccess = async e => {
             db = e.target.result;
             koleksiyon = await dbGet('koleksiyon') || {};
-            kategoriRenkleri = await dbGet('renkler') || {};
             dropdownGuncelle();
             ekranıCiz();
         };
@@ -226,24 +214,20 @@
         if(!setNo || !kat) return alert("Eksik bilgi!");
 
         try {
-            const response = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNo}-1/`, {
+            const res = await fetch(`https://rebrickable.com/api/v3/lego/sets/${setNo}-1/`, {
                 headers: { 'Authorization': `key ${API_KEY}` }
             });
-            const data = await response.json();
+            const data = await res.json();
             if(data.detail) throw new Error("Set bulunamadı.");
 
             if(!koleksiyon[kat]) koleksiyon[kat] = [];
-            
-            const cleanID = data.set_num.split('-')[0];
             koleksiyon[kat].push({
                 id: data.set_num,
                 name: data.name,
                 img: data.set_img_url,
                 parts: data.num_parts,
                 takenPrice: fiyat,
-                currentPrice: 0,
-                quantity: 1,
-                instructions: `https://www.lego.com/en-us/service/buildinginstructions/${cleanID}`
+                instructions: `https://www.lego.com/en-us/service/buildinginstructions/${data.set_num.split('-')[0]}`
             });
 
             await dbSet('koleksiyon', koleksiyon);
@@ -255,7 +239,7 @@
     function ekranıCiz() {
         const display = document.getElementById('mainDisplay');
         display.innerHTML = '';
-        let tTaken = 0, tCurrent = 0, tParts = 0, tSets = 0;
+        let tTaken = 0, tParts = 0, tSets = 0;
 
         Object.keys(koleksiyon).forEach(kat => {
             const katDiv = document.createElement('div');
@@ -267,13 +251,9 @@
                 tTaken += set.takenPrice; tParts += set.parts; tSets++;
                 grid.innerHTML += `
                     <div class="set-card">
-                        <div class="quantity-badge">1x</div>
                         <img src="${set.img}">
-                        <div class="set-info">
-                            <div class="set-name">${set.name}</div>
-                            <div class="set-details">🧩 ${set.parts} Parça</div>
-                            <input type="number" placeholder="Alış: ${set.takenPrice}" style="width:100%; padding:5px; font-size:11px;">
-                        </div>
+                        <div class="set-name">${set.name}</div>
+                        <div style="font-size:10px; color:gray; margin-bottom:10px;">🧩 ${set.parts} Parça</div>
                         <div class="card-actions">
                             <a href="${set.instructions}" target="_blank" class="btn btn-instr">📖 Talimatlar</a>
                             <button class="btn btn-delete-set" onclick="setSil('${kat}', ${idx})">Sil</button>
@@ -295,6 +275,11 @@
         }
     }
 
+    function dropdownGuncelle() {
+        const select = document.getElementById('categorySelect');
+        select.innerHTML = Object.keys(koleksiyon).map(k => `<option value="${k}">${k}</option>`).join('');
+    }
+
     function kategoriEkle() {
         const isim = document.getElementById('newCatInput').value.trim();
         if(isim && !koleksiyon[isim]) {
@@ -304,12 +289,7 @@
             document.getElementById('newCatInput').value = '';
         }
     }
-
-    function dropdownGuncelle() {
-        const select = document.getElementById('categorySelect');
-        select.innerHTML = Object.keys(koleksiyon).map(k => `<option value="${k}">${k}</option>`).join('');
-    }
-
+    
     function uygulamayiYukle() { /* PWA install logic */ }
 
     init();
