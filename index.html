@@ -247,7 +247,7 @@
         }
     }
 
-    // --- GELİŞMİŞ QR/BARKOD ÇÖZÜMLEME FONKSİYONU ---
+    // --- ONARILMIŞ QR/BARKOD TARAYICI ---
     let html5QrCode;
     async function barkodTarayiciyiBaslat() {
         const readerDiv = document.getElementById('reader');
@@ -255,7 +255,10 @@
         const inputSetNo = document.getElementById('setNo');
         
         if (readerDiv.style.display === 'block') {
-            if(html5QrCode) await html5QrCode.stop();
+            if(html5QrCode) {
+                await html5QrCode.stop();
+                html5QrCode = null;
+            }
             readerDiv.style.display = 'none';
             scanBtn.innerText = "📷 Barkod/QR Tara";
             return;
@@ -265,7 +268,7 @@
         scanBtn.innerText = "❌ Taramayı Kapat";
         
         html5QrCode = new Html5Qrcode("reader");
-        const config = { fps: 15, qrbox: { width: 280, height: 180 } };
+        const config = { fps: 20, qrbox: { width: 280, height: 180 } };
 
         html5QrCode.start(
             { facingMode: "environment" }, 
@@ -273,25 +276,25 @@
             async (decodedText) => {
                 try {
                     await html5QrCode.stop();
+                    html5QrCode = null;
                     readerDiv.style.display = 'none';
                     scanBtn.innerText = "📷 Barkod/QR Tara";
 
-                    let finalCode = decodedText;
+                    let extractedNum = decodedText;
 
-                    // EĞER BİR LİNK OKUNDUYSA (Kılavuz QR kodu gibi)
-                    if (decodedText.startsWith("http")) {
-                        // Linkin içindeki 5 veya daha fazla haneli sayıları ara (Set Numarası)
-                        const matches = decodedText.match(/\d{5,7}/);
+                    // LİNK İÇİNDEN NUMARA AYIKLAMA (Örn: https://lego.com/bi/42151)
+                    if (decodedText.includes("http")) {
+                        // URL içindeki 4-7 haneli ilk sayı grubunu bul
+                        const matches = decodedText.match(/\d{4,7}/);
                         if (matches) {
-                            finalCode = matches[0];
+                            extractedNum = matches[0];
                         }
                     }
 
-                    // Kutuya temizlenmiş kodu yaz
-                    inputSetNo.value = finalCode;
+                    inputSetNo.value = extractedNum;
                     
-                    // REBRICKABLE SORGUSU
-                    const response = await fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${finalCode}`, {
+                    // REBRICKABLE SORGUSU (Barkod veya Set No üzerinden)
+                    const response = await fetch(`https://rebrickable.com/api/v3/lego/sets/?search=${extractedNum}`, {
                         headers: { 'Authorization': `key ${API_KEY}` }
                     });
                     const data = await response.json();
@@ -299,13 +302,13 @@
                     if (data.results && data.results.length > 0) {
                         const cleanSetNum = data.results[0].set_num.split('-')[0];
                         inputSetNo.value = cleanSetNum;
-                        setGetir(); // Otomatik ekle
+                        setGetir();
                     } else {
-                        // Eğer API barkoddan bulamazsa, okunan temiz numarayı direkt dene
+                        // API'de bulunamazsa bile extractedNum'ı kullanarak eklemeyi dene
                         setGetir();
                     }
                 } catch (err) {
-                    console.error("Hata:", err);
+                    console.error("Tarama Hatası:", err);
                     alert("Okunamadı veya set bulunamadı.");
                 }
             }
@@ -408,6 +411,8 @@
                 const data = await response.json();
                 if(data.detail) throw new Error("Set bulunamadı.");
                 
+                const cleanID = data.set_num.split('-')[0];
+                
                 const yeniSet = { 
                     id: data.set_num, 
                     name: data.name, 
@@ -416,7 +421,8 @@
                     takenPrice: fiyat, 
                     currentPrice: 0, 
                     quantity: 1,
-                    instructions: `https://rebrickable.com/sets/${data.set_num}/#instructions`
+                    // LEGO RESMİ TALİMAT SAYFASI LİNKİ
+                    instructions: `https://www.lego.com/en-us/service/buildinginstructions/${cleanID}`
                 };
                 
                 koleksiyon[kat].push(yeniSet);
