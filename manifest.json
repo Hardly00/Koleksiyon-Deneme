@@ -1,7 +1,7 @@
 {
   "name": "Koleksiyonum",
   "short_name": "Collection",
-  "start_url": "index.html",
+  "start_url": "app.html",
   "display": "standalone",
   "background_color": "#C7C6C2",
   "theme_color": "#FFFFFF",
