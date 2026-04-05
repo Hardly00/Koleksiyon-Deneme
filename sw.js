@@ -1,5 +1,5 @@
 const cacheName = 'brick-17'; 
-const assets = ['./index.html', './manifest.json'];
+const assets = ['./app.html', './manifest.json'];
 
 
 self.addEventListener('install', e => {
